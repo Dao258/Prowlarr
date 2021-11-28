@@ -65,14 +65,22 @@ namespace NzbDrone.Core.Indexers.Cardigann
             {
                 foreach (var category in _definition.Caps.Categories)
                 {
-                    var cat = NewznabStandardCategory.GetCatByName(category.Value);
-                    if (cat == null)
+                    if (_definition.Protocoltype == "usenet")
                     {
-                        _logger.Error(string.Format("CardigannIndexer ({0}): invalid Torznab category for id {1}: {2}", _definition.Id, category.Key, category.Value));
-                        continue;
+                        var cat = category;
+                        break;
                     }
+                    else
+                    {
+                        var cat = NewznabStandardCategory.GetCatByName(category.Value);
+                        if (cat == null)
+                        {
+                            _logger.Error(string.Format("CardigannIndexer ({0}): invalid Torznab category for id {1}: {2}", _definition.Id, category.Key, category.Value));
+                            continue;
+                        }
 
-                    AddCategoryMapping(category.Key, cat);
+                        AddCategoryMapping(category.Key, cat);
+                    }
                 }
             }
 
@@ -80,23 +88,31 @@ namespace NzbDrone.Core.Indexers.Cardigann
             {
                 foreach (var categorymapping in _definition.Caps.Categorymappings)
                 {
-                    IndexerCategory torznabCat = null;
-
-                    if (categorymapping.cat != null)
+                    if (_definition.Protocoltype == "usenet")
                     {
-                        torznabCat = NewznabStandardCategory.GetCatByName(categorymapping.cat);
-                        if (torznabCat == null)
-                        {
-                            _logger.Error(string.Format("CardigannIndexer ({0}): invalid Torznab category for id {1}: {2}", _definition.Id, categorymapping.id, categorymapping.cat));
-                            continue;
-                        }
+                        int.TryParse(categorymapping.id, out var categorymappingidint);
+                        var indexerCategory = new IndexerCategory(categorymappingidint, categorymapping.cat);
                     }
-
-                    AddCategoryMapping(categorymapping.id, torznabCat, categorymapping.desc);
-
-                    if (categorymapping.Default)
+                    else
                     {
-                        _defaultCategories.Add(categorymapping.id);
+                        IndexerCategory torznabCat = null;
+
+                        if (categorymapping.cat != null)
+                        {
+                            torznabCat = NewznabStandardCategory.GetCatByName(categorymapping.cat);
+                            if (torznabCat == null)
+                            {
+                                _logger.Error(string.Format("CardigannIndexer ({0}): invalid Torznab category for id {1}: {2}", _definition.Id, categorymapping.id, categorymapping.cat));
+                                continue;
+                            }
+                        }
+
+                        AddCategoryMapping(categorymapping.id, torznabCat, categorymapping.desc);
+
+                        if (categorymapping.Default)
+                        {
+                            _defaultCategories.Add(categorymapping.id);
+                        }
                     }
                 }
             }
@@ -535,7 +551,7 @@ namespace NzbDrone.Core.Indexers.Cardigann
                     }
                     else
                     {
-                        throw new Exception(string.Format("Unexpceted type for variable {0}: {1}", condition, value.GetType()));
+                        throw new Exception(string.Format("Unexpected type for variable {0}: {1}", condition, value.GetType()));
                     }
 
                     if (conditionResultState)

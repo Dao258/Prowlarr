@@ -25,12 +25,12 @@ namespace NzbDrone.Core.Indexers.Cardigann
         public override string Name => "Cardigann";
         public override string[] IndexerUrls => new string[] { "" };
         public override string Description => "";
-
+        public override bool SupportsRedirect => false;
         public override DownloadProtocol Protocol => DownloadProtocol.Torrent;
         public override IndexerPrivacy Privacy => IndexerPrivacy.Private;
 
         // Page size is different per indexer, setting to 1 ensures we don't break out of paging logic
-        // thinking its a partial page and insteaad all search_path requests are run for each indexer
+        // thinking its a partial page and instead all search_path requests are run for each indexer
         public override int PageSize => 1;
 
         public override IIndexerRequestGenerator GetRequestGenerator()
@@ -127,11 +127,11 @@ namespace NzbDrone.Core.Indexers.Cardigann
                 Implementation = GetType().Name,
                 IndexerUrls = definition.Links.ToArray(),
                 Settings = new CardigannSettings { DefinitionFile = definition.File },
-                Protocol = DownloadProtocol.Torrent,
+                Protocol = definition.Protocoltype == "usenet" ? DownloadProtocol.Usenet : DownloadProtocol.Torrent,
                 Privacy = definition.Type == "private" ? IndexerPrivacy.Private : IndexerPrivacy.Public,
                 SupportsRss = SupportsRss,
                 SupportsSearch = SupportsSearch,
-                SupportsRedirect = SupportsRedirect,
+                SupportsRedirect = definition.Redirect,
                 Capabilities = new IndexerCapabilities(),
                 ExtraFields = settings
             };

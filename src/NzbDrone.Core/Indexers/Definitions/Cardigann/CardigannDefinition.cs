@@ -40,6 +40,8 @@ namespace NzbDrone.Core.Indexers.Cardigann
         public List<string> Legacylinks { get; set; }
         public bool Followredirect { get; set; } = false;
         public bool TestLinkTorrent { get; set; } = true;
+        public string Protocoltype { get; set; }
+        public bool Redirect { get; set; }
         public List<string> Certificates { get; set; }
         public CapabilitiesBlock Caps { get; set; }
         public LoginBlock Login { get; set; }

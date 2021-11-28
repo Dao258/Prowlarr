@@ -26,7 +26,7 @@ namespace NzbDrone.Core.IndexerVersions
     {
         /* Update Service will fall back if version # does not exist for an indexer  per Ta */
 
-        private const int DEFINITION_VERSION = 3;
+        private const int DEFINITION_VERSION = 4;
         private readonly List<string> _defintionBlocklist = new List<string>()
         {
             "aither",
@@ -204,6 +204,11 @@ namespace NzbDrone.Core.IndexerVersions
             if (definition.Login != null && definition.Login.Method == null)
             {
                 definition.Login.Method = "form";
+            }
+
+            if (definition.Protocoltype == null)
+            {
+                definition.Protocoltype = "torrent";
             }
 
             if (definition.Search.Paths == null)

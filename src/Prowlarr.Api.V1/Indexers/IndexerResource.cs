@@ -136,6 +136,7 @@ namespace Prowlarr.Api.V1.Indexers
             definition.Priority = resource.Priority;
             definition.Privacy = resource.Privacy;
             definition.Added = resource.Added;
+            definition.Protocol = resource.Protocol;
 
             return definition;
         }

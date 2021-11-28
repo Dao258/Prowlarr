@@ -55,7 +55,7 @@ namespace NzbDrone.Core.Indexers.Cardigann
             var request = indexerResponse.Request as CardigannRequest;
             var variables = request.Variables;
             var search = _definition.Search;
-
+            var protocoltype = _definition.Protocoltype;
             var searchUrlUri = new Uri(request.Url.FullUri);
 
             if (request.SearchPath.Response != null && request.SearchPath.Response.Type.Equals("json"))
@@ -96,7 +96,7 @@ namespace NzbDrone.Core.Indexers.Cardigann
 
                     foreach (var mulRow in mulRows)
                     {
-                        var release = new TorrentInfo();
+                        var release = new ReleaseInfo();
 
                         foreach (var field in search.Fields)
                         {
@@ -126,7 +126,7 @@ namespace NzbDrone.Core.Indexers.Cardigann
                                     continue;
                                 }
 
-                                variables[variablesKey] = ParseFields(value, fieldName, release, fieldModifiers, searchUrlUri);
+                                variables[variablesKey] = ParseFields(value, fieldName, release, fieldModifiers, searchUrlUri, protocoltype);
                             }
                             catch (Exception ex)
                             {
@@ -228,7 +228,7 @@ namespace NzbDrone.Core.Indexers.Cardigann
                     {
                         try
                         {
-                            var release = new TorrentInfo();
+                            var release = new ReleaseInfo();
 
                             // Parse fields
                             foreach (var field in search.Fields)
@@ -254,7 +254,7 @@ namespace NzbDrone.Core.Indexers.Cardigann
                                         continue;
                                     }
 
-                                    variables[variablesKey] = ParseFields(value, fieldName, release, fieldModifiers, searchUrlUri);
+                                    variables[variablesKey] = ParseFields(value, fieldName, release, fieldModifiers, searchUrlUri, protocoltype);
                                 }
                                 catch (Exception ex)
                                 {
@@ -363,8 +363,9 @@ namespace NzbDrone.Core.Indexers.Cardigann
             return releases;
         }
 
-        private string ParseFields(string value, string fieldName, TorrentInfo release, List<string> fieldModifiers, Uri searchUrlUri)
+        private string ParseFields(string value, string fieldName, ReleaseInfo release, List<string> fieldModifiers, Uri searchUrlUri, string protocoltype)
         {
+            var torrentInfo = new TorrentInfo();
             switch (fieldName)
             {
                 case "download":
@@ -377,8 +378,8 @@ namespace NzbDrone.Core.Indexers.Cardigann
 
                     if (value.StartsWith("magnet:"))
                     {
-                        release.MagnetUrl = value;
-                        value = release.MagnetUrl;
+                        torrentInfo.MagnetUrl = value;
+                        value = torrentInfo.MagnetUrl;
                     }
                     else
                     {
@@ -391,12 +392,13 @@ namespace NzbDrone.Core.Indexers.Cardigann
                     break;
                 case "magnet":
                     var magnetUri = value;
-                    release.MagnetUrl = magnetUri;
+                    torrentInfo.MagnetUrl = magnetUri;
                     value = magnetUri.ToString();
                     break;
                 case "infohash":
-                    release.InfoHash = value;
+                    torrentInfo.InfoHash = value;
                     break;
+
                 case "details":
                     var url = ResolvePath(value, searchUrlUri)?.AbsoluteUri;
                     release.InfoUrl = url;
@@ -436,16 +438,19 @@ namespace NzbDrone.Core.Indexers.Cardigann
                     value = release.Description;
                     break;
                 case "category":
-                    var cats = MapTrackerCatToNewznab(value);
-                    if (cats.Any())
+                    if (protocoltype == "torrents")
                     {
-                        if (release.Categories == null || fieldModifiers.Contains("noappend"))
+                        var cats = MapTrackerCatToNewznab(value);
+                        if (cats.Any())
                         {
-                            release.Categories = cats;
-                        }
-                        else
-                        {
-                            release.Categories = release.Categories.Union(cats).ToList();
+                            if (release.Categories == null || fieldModifiers.Contains("noappend"))
+                            {
+                                release.Categories = cats;
+                            }
+                            else
+                            {
+                                release.Categories = release.Categories.Union(cats).ToList();
+                            }
                         }
                     }
 
@@ -458,30 +463,30 @@ namespace NzbDrone.Core.Indexers.Cardigann
                 case "leechers":
                     var leechers = ParseUtil.CoerceLong(value);
                     leechers = leechers < 5000000L ? leechers : 0; // to fix #6558
-                    if (release.Peers == null)
+                    if (torrentInfo.Peers == null)
                     {
-                        release.Peers = (int)leechers;
+                        torrentInfo.Peers = (int)leechers;
                     }
                     else
                     {
-                        release.Peers += (int)leechers;
+                        torrentInfo.Peers += (int)leechers;
                     }
 
                     value = leechers.ToString();
                     break;
                 case "seeders":
-                    release.Seeders = ParseUtil.CoerceInt(value);
-                    release.Seeders = release.Seeders < 5000000L ? release.Seeders : 0; // to fix #6558
-                    if (release.Peers == null)
+                    torrentInfo.Seeders = ParseUtil.CoerceInt(value);
+                    torrentInfo.Seeders = torrentInfo.Seeders < 5000000L ? torrentInfo.Seeders : 0; // to fix #6558
+                    if (torrentInfo.Peers == null)
                     {
-                        release.Peers = release.Seeders;
+                        torrentInfo.Peers = torrentInfo.Seeders;
                     }
                     else
                     {
-                        release.Peers += release.Seeders;
+                        torrentInfo.Peers += torrentInfo.Seeders;
                     }
 
-                    value = release.Seeders.ToString();
+                    value = torrentInfo.Seeders.ToString();
                     break;
                 case "date":
                     release.PublishDate = DateTimeUtil.FromUnknown(value);
@@ -496,20 +501,20 @@ namespace NzbDrone.Core.Indexers.Cardigann
                     value = release.Grabs.ToString();
                     break;
                 case "downloadvolumefactor":
-                    release.DownloadVolumeFactor = ParseUtil.CoerceDouble(value);
-                    value = release.DownloadVolumeFactor.ToString();
+                    torrentInfo.DownloadVolumeFactor = ParseUtil.CoerceDouble(value);
+                    value = torrentInfo.DownloadVolumeFactor.ToString();
                     break;
                 case "uploadvolumefactor":
-                    release.UploadVolumeFactor = ParseUtil.CoerceDouble(value);
-                    value = release.UploadVolumeFactor.ToString();
+                    torrentInfo.UploadVolumeFactor = ParseUtil.CoerceDouble(value);
+                    value = torrentInfo.UploadVolumeFactor.ToString();
                     break;
                 case "minimumratio":
-                    release.MinimumRatio = ParseUtil.CoerceDouble(value);
-                    value = release.MinimumRatio.ToString();
+                    torrentInfo.MinimumRatio = ParseUtil.CoerceDouble(value);
+                    value = torrentInfo.MinimumRatio.ToString();
                     break;
                 case "minimumseedtime":
-                    release.MinimumSeedTime = ParseUtil.CoerceLong(value);
-                    value = release.MinimumSeedTime.ToString();
+                    torrentInfo.MinimumSeedTime = ParseUtil.CoerceLong(value);
+                    value = torrentInfo.MinimumSeedTime.ToString();
                     break;
                 case "imdb":
                 case "imdbid":
